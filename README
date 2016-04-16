@@ -1,0 +1,13 @@
+Backup through rsync
+--------------------
+
+A simple Bash script for performing a backup of your files to a specified 
+location (e.g. an external storage device).
+
+
+## Usage ##
+
+Review directories configuration in the script and run:
+
+	./backup.sh
+
