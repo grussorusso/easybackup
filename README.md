@@ -7,7 +7,7 @@ to a specified location (e.g. an external storage device).
 
 In order to run this backup script, `rsync` must be installed on your system.
 
-## Installation ## 
+## Installation ##
 
 It is enough to download the script to your system. However, it might be useful to put
 the script in a directory included in your `PATH`.
