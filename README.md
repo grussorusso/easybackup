@@ -1,5 +1,4 @@
-Easy rsync backup
---------------------
+# Easy rsync backup #
 
 A simple Bash script for performing a backup of a set of directories
 to a specified location (e.g. an external storage device).
