@@ -26,21 +26,19 @@ RSYNC_OPT='-aShR --delete'
 
 
 
-# Adds trailing slash to source path, if missing, and writes it to output.
-# $1 --> original path
-adjust_source_path()
+# Adds trailing slash to given path (if missing) and writes it to output.
+# Param: $1 -> path
+#
+_add_trailing_slash()
 {
 	local path="$1"
-
-	if [[ ! ${path} =~ /$ ]]; then
-		path="${path}/"
-	fi
-	echo ${path}
+	[[ ! ${path} =~ /$ ]] && echo "${path}/" || echo ${path}
 }
 
 # Performs backup of given directory using rsync.
-# $1 --> source directory
-# $2 --> backup destination directory
+# Param: $1 -> source directory
+# Param: $2 -> backup destination directory
+#
 backup_directory()
 {
 	local src="$1"
@@ -51,24 +49,29 @@ backup_directory()
 }
 
 # Performs backup of all specified source directories.
-# $1 --> file containing source directories (absolute paths)
-# $2 --> backup destination directory
-backup()
+# Param: $1 -> file containing source directories (absolute paths)
+# Param: $2 -> backup destination directory
+#
+backup_all_sources()
 {
 	local src_file="${1}"
 	local dst="${2}"
 
-	cat ${src_file} | while read src;
+	cat ${src_file} | while read src_line;
 	do
-		if [[ -d ${src} ]]; then
-			local src_path=$(adjust_source_path ${src})
+		# Check that line is a valid directory path
+		if [[ -d ${src_line} ]]; then
+			# Add trailing slash to the path if needed
+			local src_path=$(_add_trailing_slash ${src_line})
+
+			# Runs backup of this directory
 			echo "Syncing: ${src_path} ..."
 			if  ! backup_directory ${src_path} ${dst}; then
-				echo "[ERROR] Failed backup of: ${src}"
-				return 2
+				echo "[ERROR] Failed backup of: ${src_path}"
+				exit 2
 			fi
 		else
-			echo "[WARNING] Skipping not found directory: ${src}"
+			echo "[WARNING] Skipping not found directory: ${src_line}" >&2
 		fi
 	done
 
@@ -76,11 +79,12 @@ backup()
 }
 
 # Checks if given destination directory is suitable for performing backup.
-# We check if backup destination directory exists and (if needed) we try to
-# create it. We also check write permissions on that directory.
-
-# $1 --> destination directory path
-# Return: 0 if we can proceed with backup.
+# We check if backup destination directory exists. If it does not, we try to
+# create it. 
+# We also check that script has write permissions on that directory.
+#
+# Param: $1 -> destination directory path
+#
 check_destination()
 {
 	local dst=${1}
@@ -103,19 +107,33 @@ check_destination()
 	return 0
 }
 
-# Prints brief usage information.
-usage()
+# Prints usage line.
+# Param: $1 -> script name
+#
+_usage()
 {
 	local progname="$1"
 	echo "Usage: ${progname} -s <source directories file> -d <destination directory path>"
+}
+
+# Prints brief usage information.
+# Param: $1 -> script name
+#
+usage()
+{
+	local progname="$1"
+
+	_usage ${progname}
 	echo "Use -h for requesting full help."
 }
 
-# Prints help information.
+# Prints help.
+# Param: $1 -> script name
+# 
 help()
 {
 	local progname="$1"	
-	echo "Usage: ${progname} -s <source directories file> -d <destination directory path>"
+	_usage ${progname}
 	
 	printf "where\n\t"
 	printf "<source directories file> contains a list "
@@ -159,15 +177,15 @@ main()
 		esac
 	done
 
+	# Check that a sources file and a destination directory have been provided
 	if [[ "x$src_file" == "x" || "x$destination" == "x" ]]; then
 		usage $(basename "$0")
 		exit 1
 	fi
 
-	
-
+	# Check that a valid destination directory has been specified
 	if check_destination ${destination}; then
-		backup ${src_file} ${destination}
+		backup_all_sources ${src_file} ${destination}
 		return $?
 	else
 		return 3
