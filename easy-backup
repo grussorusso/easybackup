@@ -37,16 +37,44 @@ _add_trailing_slash()
 
 # Performs backup of given directory using rsync.
 # Param: $1 -> source directory
-# Param: $2 -> backup destination directory
+# Param: $2 -> destination directory
 #
 backup_directory()
 {
 	local src="$1"
 	local dst="$2"
 
+	echo "Syncing: ${src}"
 	rsync ${RSYNC_OPT} ${src} ${dst}
-	return $?
+
+	if [[ $? -ne 0 ]]; then
+		echo "Failed backup of: ${src_path}!"
+		exit 2
+	fi
 }
+
+# Checks that given directory path is a valid source directory path.
+# We require an absolute path.
+# 
+# Param: $1 -> path
+#
+check_source_path()
+{
+	# Check that path is absolute
+	if [[ ! "${src:0:1}" == "/" && ! "${src:0:1}" == '~' ]]; then
+		echo "Given source path is not an absolute path: ${src} (skipped)" >&2
+		return 1
+	fi
+
+	# Check that path is a directory
+	if [[ ! -d ${src} ]]; then
+		echo "Given source is not a directory: ${src} (skipped)" >&2
+		return 2
+	fi
+
+	return 0
+}
+
 
 # Performs backup of all specified source directories.
 # Param: $1 -> file containing source directories (absolute paths)
@@ -56,26 +84,21 @@ backup_all_sources()
 {
 	local src_file="${1}"
 	local dst="${2}"
+	local retval=1
 
 	cat ${src_file} | while read src_line;
 	do
 		# Check that line is a valid directory path
-		if [[ -d ${src_line} ]]; then
+		if check_source_path ${src_line}; then
 			# Add trailing slash to the path if needed
 			local src_path=$(_add_trailing_slash ${src_line})
 
-			# Runs backup of this directory
-			echo "Syncing: ${src_path} ..."
-			if  ! backup_directory ${src_path} ${dst}; then
-				echo "[ERROR] Failed backup of: ${src_path}"
-				exit 2
-			fi
-		else
-			echo "[WARNING] Skipping not found directory: ${src_line}" >&2
+			backup_directory ${src_path} ${dst}
+			retval=0
 		fi
 	done
 
-	return 0
+	return ${retval} # 0 if backup succeded for at least one directory
 }
 
 # Checks if given destination directory is suitable for performing backup.
@@ -113,7 +136,7 @@ check_destination()
 _usage()
 {
 	local progname="$1"
-	echo "Usage: ${progname} -s <source directories file> -d <destination directory path>"
+	echo "Usage: ${progname} -s <sources file> -d <destination directory>"
 }
 
 # Prints brief usage information.
@@ -184,12 +207,12 @@ main()
 	fi
 
 	# Check that a valid destination directory has been specified
-	if check_destination ${destination}; then
-		backup_all_sources ${src_file} ${destination}
-		return $?
-	else
-		return 3
+	if ! check_destination ${destination}; then
+		exit 3
 	fi
+
+	backup_all_sources ${src_file} ${destination}
+	exit $?
 }
 
 main "${@}"
