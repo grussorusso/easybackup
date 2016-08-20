@@ -1,6 +1,6 @@
 # easy-backup #
 
-A simple `rsync` wrapper script for performing a backup of a set of directories
+A simple `rsync` wrapper script for performing an incremental backup of a set of directories
 to a specified location (e.g. an external storage device) on Linux.
 
 ## Installation ##

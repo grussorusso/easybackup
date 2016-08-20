@@ -157,15 +157,34 @@ help()
 {
 	local progname="$1"	
 	_usage ${progname}
-	
-	printf "where\n\t"
-	printf "<source directories file> contains a list "
-	printf "of directory paths to be used\n\t\tas sources for backup, one per line. "
-	printf "Absolute path are recommended.\n\t"
 
-	printf "<destination directory path> is the path of directory into which"
-	printf " backup will be performed.\n\t\tIn this directory, entire directory "
-	printf "hierarchy will be recreated.\n"
+	cat << EOS
+
+A simple 'rsync' wrapper script for performing an incremental backup of a set of 
+directories to a specified location (e.g. an external storage device).
+
+The list of directories to be included in backup is provided through a "sources"
+file. The destination for backup is specified as an argument. In this
+destination directory, the entire directory hierarchy for selected folders is
+created.
+
+PARAMETERS:
+-s <source directories file> = file containing the list of directories to be
+				included in backup. Absolute paths are required,
+				one per line.
+				
+-d <destination directory>   = directory for storing backup
+
+EXAMPLE:
+Assuming that 'backup_directories.txt' is a regular file containing these lines:
+
+	/home/user/music/
+	/home/user/pictures/
+
+to backup these directories to '/mnt/external/':
+	
+	$ easy-backup -s backup_directories.txt -d /mnt/external
+EOS
 }
 
 
