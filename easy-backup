@@ -1,4 +1,6 @@
-#    Performs backup of specified directories to a given destination with rsync.
+#!/bin/bash
+
+#    easy-backup -- A rsync wrapper to easily perform backups of a set of directories.
 #    Copyright (C) 2016 Gabriele Russo Russo
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -14,7 +16,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# ==========================================================================
 
 # Terminate execution whenever accessing an unset variable
 set -o nounset
@@ -27,7 +28,7 @@ RSYNC_OPT='-aShR --delete'
 
 # Adds trailing slash to source path, if missing, and writes it to output.
 # $1 --> original path
-function adjust_source_path
+adjust_source_path()
 {
 	local path="$1"
 
@@ -40,7 +41,7 @@ function adjust_source_path
 # Performs backup of given directory using rsync.
 # $1 --> source directory
 # $2 --> backup destination directory
-function backup_directory
+backup_directory()
 {
 	local src="$1"
 	local dst="$2"
@@ -52,7 +53,7 @@ function backup_directory
 # Performs backup of all specified source directories.
 # $1 --> file containing source directories (absolute paths)
 # $2 --> backup destination directory
-function backup
+backup()
 {
 	local src_file="${1}"
 	local dst="${2}"
@@ -80,7 +81,7 @@ function backup
 
 # $1 --> destination directory path
 # Return: 0 if we can proceed with backup.
-function check_destination
+check_destination()
 {
 	local dst=${1}
 
@@ -103,7 +104,7 @@ function check_destination
 }
 
 # Prints brief usage information.
-function usage
+usage()
 {
 	local progname="$1"
 	echo "Usage: ${progname} -s <source directories file> -d <destination directory path>"
@@ -111,7 +112,7 @@ function usage
 }
 
 # Prints help information.
-function help
+help()
 {
 	local progname="$1"	
 	echo "Usage: ${progname} -s <source directories file> -d <destination directory path>"
@@ -127,7 +128,7 @@ function help
 }
 
 
-function main
+main()
 {
 	local src_file=''
 	local destination=''
