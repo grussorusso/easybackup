@@ -60,6 +60,8 @@ backup_directory()
 #
 check_source_path()
 {
+	local src="$1"
+
 	# Check that path is absolute
 	if [[ ! "${src:0:1}" == "/" && ! "${src:0:1}" == '~' ]]; then
 		echo "Given source path is not an absolute path: ${src} (skipped)" >&2
