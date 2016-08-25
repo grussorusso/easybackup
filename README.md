@@ -3,27 +3,41 @@
 A simple `rsync` wrapper script for performing an incremental backup of a set of directories
 to a specified location (e.g. an external storage device) on Linux.
 
+The set of directories to backup is specified through a simple text file. 
+Optionally, another file may be used to provide a list of patterns to exclude
+file and directories from the backup (e.g. hidden directories).
+
 ## Installation ##
 
-**Requirements:** `rsync` (and a Bash interpreter).
+It is extremely easy to get a working copy of this software:
 
-It is enough to download the script to your system, cloning this repository. 
-Then, it might be useful to put
-the script in a directory included in your `PATH`.
+1. **Check requirements:** `rsync` (and a Bash interpreter).
+
+2. **Download the script**, from this repository.
 
 ## Usage ##
 
-Choose the directories to be included in backup. Prepare a file
-with chosen directory paths, one per line. Absolute paths are required. E.g.:
+Your first run of `easy-backup` is made of two phases:
+
+1. Choose the directories to be included in the backup. Prepare a file
+containing absolute path of chosen directories, one per line. E.g.:
 
 	/home/me/Documents
 	/home/me/Pictures
 
-You can start the backup with following command:
+2. Start the backup issuing the following command:
 
-	./easy-backup -s sources_file -d /my/backup/destination/ 
+	./easy-backup -s <chosen_dirs_file> -d <destination_directory>
+
+That's it!
+
+You can ask for help and get more details about available options:
+
+	./easy-backup -h
 
 
-*This software is distributed under terms of GPLv3.*
-*You can find a copy of the license in this repository.*
+## Copying ##
+
+This software is distributed under terms of GPLv3.
+You can find a copy of the license in this repository.
 

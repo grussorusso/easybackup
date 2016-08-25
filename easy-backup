@@ -142,7 +142,7 @@ check_destination()
 _usage()
 {
 	local progname="$1"
-	echo "Usage: ${progname} -s <sources file> -d <destination directory>"
+	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-e <excluded patterns file>]"
 }
 
 # Prints brief usage information.
@@ -181,15 +181,30 @@ PARAMETERS:
 				
 -d <destination directory>   = directory for storing backup
 
+-e <excluded patterns file>  = (optional) file containing a list of patterns to
+                               be excluded from backup (e.g. '*/.git/*')
+
 EXAMPLE:
 Assuming that 'backup_directories.txt' is a regular file containing these lines:
 
 	/home/user/music/
 	/home/user/pictures/
 
-to backup these directories to '/mnt/external/':
+following command will perform a backup of these directories to '/mnt/external/':
 	
 	$ easy-backup -s backup_directories.txt -d /mnt/external
+
+The resulting directory hierarchy under '/mnt/external':
+
+	/mnt/external/
+		|---- home/
+		          |--- user/
+			         |--- music/
+				        |---- ...
+				        |---- ...
+			         |--- pictures/
+				        |---- ...
+				        |---- ...
 EOS
 }
 
