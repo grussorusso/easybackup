@@ -22,12 +22,12 @@ Your first run of `easy-backup` is made of two phases:
 1. Choose the directories to be included in the backup. Prepare a file
 containing absolute path of chosen directories, one per line. E.g.:
 
-	/home/me/Documents
-	/home/me/Pictures
+		/home/me/Documents
+		/home/me/Pictures
 
 2. Start the backup issuing the following command:
 
-	./easy-backup -s <chosen_dirs_file> -d <destination_directory>
+		./easy-backup -s <chosen_dirs_file> -d <destination_directory>
 
 That's it!
 
