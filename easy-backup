@@ -20,16 +20,11 @@
 # Terminate execution whenever accessing an unset variable
 set -o nounset
 
-# Options to be provided to rsync
-RSYNC_OPT='-aShR --delete'
-
-
-
 
 # Adds trailing slash to given path (if missing) and writes it to output.
 # Param: $1 -> path
 #
-_add_trailing_slash()
+add_trailing_slash()
 {
 	local path="$1"
 	[[ ! ${path} =~ /$ ]] && echo "${path}/" || echo ${path}
@@ -38,14 +33,19 @@ _add_trailing_slash()
 # Performs backup of given directory using rsync.
 # Param: $1 -> source directory
 # Param: $2 -> destination directory
+# Param: $3 -> (optional) file containing excluded patterns
 #
 backup_directory()
 {
 	local src="$1"
 	local dst="$2"
+	local RSYNC_OPT='-aShR --delete'
+
+	local exclude_from_opt=""
+	[[ $# -gt 2 ]] && exclude_from_opt="--exclude-from ${3}"
 
 	echo "Syncing: ${src}"
-	rsync ${RSYNC_OPT} ${src} ${dst}
+	rsync ${RSYNC_OPT} ${exclude_from_opt} ${src} ${dst}
 
 	if [[ $? -ne 0 ]]; then
 		echo "Failed backup of: ${src_path}!"
@@ -81,6 +81,7 @@ check_source_path()
 # Performs backup of all specified source directories.
 # Param: $1 -> file containing source directories (absolute paths)
 # Param: $2 -> backup destination directory
+# Param: $3 -> (optional) file containing patterns to be excluded
 #
 backup_all_sources()
 {
@@ -88,14 +89,17 @@ backup_all_sources()
 	local dst="${2}"
 	local retval=1
 
+	local excluded_patterns_file=""
+	[[ $# -gt 2 ]] && excluded_patterns_file="${3}"
+
 	cat ${src_file} | while read src_line;
 	do
 		# Check that line is a valid directory path
 		if check_source_path ${src_line}; then
 			# Add trailing slash to the path if needed
-			local src_path=$(_add_trailing_slash ${src_line})
+			local src_path=$(add_trailing_slash ${src_line})
 
-			backup_directory ${src_path} ${dst}
+			backup_directory ${src_path} ${dst} ${excluded_patterns_file}
 			retval=0
 		fi
 	done
@@ -138,7 +142,7 @@ check_destination()
 _usage()
 {
 	local progname="$1"
-	echo "Usage: ${progname} -s <sources file> -d <destination directory>"
+	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-e <excluded patterns file>]"
 }
 
 # Prints brief usage information.
@@ -177,15 +181,30 @@ PARAMETERS:
 				
 -d <destination directory>   = directory for storing backup
 
+-e <excluded patterns file>  = (optional) file containing a list of patterns to
+                               be excluded from backup (e.g. '*/.git/*')
+
 EXAMPLE:
 Assuming that 'backup_directories.txt' is a regular file containing these lines:
 
 	/home/user/music/
 	/home/user/pictures/
 
-to backup these directories to '/mnt/external/':
+following command will perform a backup of these directories to '/mnt/external/':
 	
 	$ easy-backup -s backup_directories.txt -d /mnt/external
+
+The resulting directory hierarchy under '/mnt/external':
+
+	/mnt/external/
+		|---- home/
+		          |--- user/
+			         |--- music/
+				        |---- ...
+				        |---- ...
+			         |--- pictures/
+				        |---- ...
+				        |---- ...
 EOS
 }
 
@@ -193,10 +212,11 @@ EOS
 main()
 {
 	local src_file=''
+	local exclude_file=''
 	local destination=''
 
 	# Parses CLI options
-	while getopts ":s:d:h" opt; do
+	while getopts ":s:e:d:h" opt; do
 		case $opt in
 			h)
 				help $(basename "$0")
@@ -207,6 +227,9 @@ main()
 				;;
 			d)
 				destination="${OPTARG}"
+				;;
+			e)
+				exclude_file="${OPTARG}"
 				;;
 			\?)
 				echo "Invalid option: -$OPTARG" >&2
@@ -232,7 +255,13 @@ main()
 		exit 3
 	fi
 
-	backup_all_sources ${src_file} ${destination}
+	# Check that exclude file (if specified) exists
+	if [[ "x$exclude_file" != "x" && ! -f $exclude_file ]]; then
+		usage $(basename "$0")
+		exit 4
+	fi
+
+	backup_all_sources ${src_file} ${destination} ${exclude_file}
 	exit $?
 }
 
