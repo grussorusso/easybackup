@@ -1,7 +1,8 @@
 # easy-backup #
 
-A simple `rsync` wrapper script for performing an incremental backup of a set of directories
-to a specified location (e.g. an external storage device) on Linux.
+A simple Bash script for performing an incremental backup of a set of directories
+to a specified location (possibly to a remote server via SSH) through `rsync`
+on Linux.
 
 The set of directories to backup is specified through a simple text file. 
 Optionally, another file may be used to provide a list of patterns to exclude
@@ -11,9 +12,11 @@ file and directories from the backup (e.g. hidden directories).
 
 It is extremely easy to get a working copy of this software:
 
-1. **Check requirements:** `rsync` (and a Bash interpreter).
+1. Check requirements: `rsync` (and a Bash interpreter).
 
-2. **Download the script**, from this repository.
+2. Download the script from this repository.
+
+3. Done! You are ready to try it!
 
 ## Usage ##
 
@@ -31,7 +34,11 @@ containing absolute path of chosen directories, one per line. E.g.:
 
 That's it!
 
-You can ask for help and get more details about available options:
+For a backup to a remote server (on which `rsync` is installed):
+
+		./easy-backup -s <chosen_dirs_file> -d <destination_directory> -r <server>
+
+You can get more details about available options and what `easy-backup` does, issuing:
 
 	./easy-backup -h
 

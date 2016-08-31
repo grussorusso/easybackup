@@ -30,41 +30,6 @@ add_trailing_slash()
 	[[ ! ${path} =~ /$ ]] && echo "${path}/" || echo ${path}
 }
 
-# Performs backup of given directory using rsync.
-# Param: $1 -> source directory
-# Param: $2 -> destination directory
-# Param: $3 -> file containing excluded patterns
-# Param: $4 -> username to use for remote backup
-# Param: $5 -> (optional) hostname to use for remote backup
-#
-backup_directory()
-{
-	local src="$1"
-	local dst="$2"
-	local user="${4}"
-	local host="${5:-}"
-	local RSYNC_OPT='-aShR --delete'
-
-	# Sets option for providing an excluded patterns file
-	local exclude_from_opt=""
-	[[ $# -gt 2 && ${3} != '/dev/null' ]] && exclude_from_opt="--exclude-from ${3}"
-
-	# Sets SSH related options (if needed)
-	local ssh_opt=""
-	local host_prefix=""
-	if [[ "x${host}" != "x" ]]; then
-		ssh_opt='-e ssh'
-		[[ ${user} == ${USER} ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
-	fi
-
-	echo "Syncing: ${src}"
-	rsync ${RSYNC_OPT} ${ssh_opt} ${exclude_from_opt} ${src} ${host_prefix}${dst}
-
-	if [[ $? -ne 0 ]]; then
-		echo "Failed backup of: ${src_path}"
-		exit 2
-	fi
-}
 
 # Checks that given directory path is a valid source directory path.
 # We require an absolute path.
@@ -90,6 +55,21 @@ check_source_path()
 	return 0
 }
 
+# Reads list of source directories and writes to output path of valid ones.
+# 
+# Param: $1 -> file containing list of directories
+#
+read_source_directories()
+{
+	local src_file="${1}"
+	
+	while read src_line;
+	do
+		# Check that line is a valid directory path and outputs it
+		check_source_path ${src_line} && echo $(add_trailing_slash ${src_line})
+	done < ${src_file}
+}
+
 
 # Performs backup of all specified source directories.
 # Param: $1 -> file containing source directories (absolute paths)
@@ -105,21 +85,43 @@ backup_all_sources()
 	local excluded_patterns_file="${3}"
 	local user="${4}"
 	local host="${5:-}"
-	local retval=1
+	local source_directories=()
+	local RSYNC_OPT='-aShR --delete'
+	local src_path=''
 
-	cat ${src_file} | while read src_line;
-	do
-		# Check that line is a valid directory path
-		if check_source_path ${src_line}; then
-			# Add trailing slash to the path if needed
-			local src_path=$(add_trailing_slash ${src_line})
+	# Sets option for providing an excluded patterns file
+	local exclude_from_opt=""
+	[[ "${excluded_patterns_file}" != '/dev/null' ]] && exclude_from_opt="--exclude-from ${excluded_patterns_file}"
 
-			backup_directory ${src_path} ${dst} ${excluded_patterns_file} ${user} ${host}
-			retval=0
-		fi
-	done
+	# Sets SSH related options (if needed)
+	local ssh_opt=""
+	local host_prefix=""
+	if [[ "x${host}" != "x" ]]; then
+		ssh_opt='-e ssh'
+		[[ ${user} == ${USER} ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
+	fi
+	
+	# Reads list of source directories and stores paths into an array
+	local tmp_ifs=$IFS
+	IFS=$'\n' source_directories+=( $(read_source_directories $src_file) )
+	IFS=$tmp_ifs
 
-	return ${retval} # 0 if backup succeded for at least one directory
+	# Checks that at least one valid source directory exists
+	if [[ ${#source_directories[@]} -lt 1 ]]; then
+		echo "No directories to backup." >&2
+		exit 5
+	fi
+
+	# Runs rsync
+	echo "Running backup..."
+	rsync ${RSYNC_OPT} ${ssh_opt} ${exclude_from_opt} ${source_directories[@]} ${host_prefix}${dst}
+
+	if [[ $? -ne 0 ]]; then
+		echo "+++ BACKUP FAILED!" >&2
+		exit 2
+	fi
+
+	return 0 
 }
 
 # Checks if given destination directory is suitable for performing backup.
@@ -129,7 +131,7 @@ backup_all_sources()
 #
 # Param: $1 -> destination directory path
 #
-check_destination()
+check_local_destination()
 {
 	local dst=${1}
 
@@ -157,7 +159,7 @@ check_destination()
 _usage()
 {
 	local progname="$1"
-	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-e <excluded patterns file>]"
+	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-e <excluded patterns file>] [-r <remote host> [-u <remote user>]]"
 }
 
 # Prints brief usage information.
@@ -182,22 +184,31 @@ help()
 	cat << EOS
 
 A simple 'rsync' wrapper script for performing an incremental backup of a set of 
-directories to a specified location (e.g. an external storage device).
+directories to a specified location (e.g. an external storage device or a
+remote server via SSH).
 
 The list of directories to be included in backup is provided through a "sources"
 file. The destination for backup is specified as an argument. In this
 destination directory, the entire directory hierarchy for selected folders is
 created.
 
+If a remote backup is to be run, user has to specify the host and (optionally)
+the username for establishing a SSH connection.
+
 PARAMETERS:
 -s <source directories file> = file containing the list of directories to be
 				included in backup. Absolute paths are required,
 				one per line.
-				
 -d <destination directory>   = directory for storing backup
 
 -e <excluded patterns file>  = (optional) file containing a list of patterns to
                                be excluded from backup (e.g. '*/.git/*')
+
+-r <remote host>             = (optional) host for remote backup via SSH
+-u <remote user>             = (optional) username for remote backup via SSH.
+                               If a remote user is not specified but a remote
+        		       backup is performed, SSH login is attemted using
+        		       current username.
 
 EXAMPLE:
 Assuming that 'backup_directories.txt' is a regular file containing these lines:
@@ -276,7 +287,7 @@ main()
 	# Check that a valid destination directory has been specified.
 	# (We do NOT perform this check in case of remote backup)
 	#
-	if [[ "x$remote_host" == "x" ]] && ! check_destination ${destination}; then
+	if [[ "x$remote_host" == "x" ]] && ! check_local_destination ${destination}; then
 		exit 3
 	fi
 
