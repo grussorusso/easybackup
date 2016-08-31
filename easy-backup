@@ -33,22 +33,35 @@ add_trailing_slash()
 # Performs backup of given directory using rsync.
 # Param: $1 -> source directory
 # Param: $2 -> destination directory
-# Param: $3 -> (optional) file containing excluded patterns
+# Param: $3 -> file containing excluded patterns
+# Param: $4 -> username to use for remote backup
+# Param: $5 -> (optional) hostname to use for remote backup
 #
 backup_directory()
 {
 	local src="$1"
 	local dst="$2"
+	local user="${4}"
+	local host="${5:-}"
 	local RSYNC_OPT='-aShR --delete'
 
+	# Sets option for providing an excluded patterns file
 	local exclude_from_opt=""
-	[[ $# -gt 2 ]] && exclude_from_opt="--exclude-from ${3}"
+	[[ $# -gt 2 && ${3} != '/dev/null' ]] && exclude_from_opt="--exclude-from ${3}"
+
+	# Sets SSH related options (if needed)
+	local ssh_opt=""
+	local host_prefix=""
+	if [[ "x${host}" != "x" ]]; then
+		ssh_opt='-e ssh'
+		[[ ${user} == ${USER} ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
+	fi
 
 	echo "Syncing: ${src}"
-	rsync ${RSYNC_OPT} ${exclude_from_opt} ${src} ${dst}
+	rsync ${RSYNC_OPT} ${ssh_opt} ${exclude_from_opt} ${src} ${host_prefix}${dst}
 
 	if [[ $? -ne 0 ]]; then
-		echo "Failed backup of: ${src_path}!"
+		echo "Failed backup of: ${src_path}"
 		exit 2
 	fi
 }
@@ -81,16 +94,18 @@ check_source_path()
 # Performs backup of all specified source directories.
 # Param: $1 -> file containing source directories (absolute paths)
 # Param: $2 -> backup destination directory
-# Param: $3 -> (optional) file containing patterns to be excluded
+# Param: $3 -> file containing patterns to be excluded
+# Param: $4 -> username to use for remote backup
+# Param: $5 -> (optional) hostname to use for remote backup
 #
 backup_all_sources()
 {
 	local src_file="${1}"
 	local dst="${2}"
+	local excluded_patterns_file="${3}"
+	local user="${4}"
+	local host="${5:-}"
 	local retval=1
-
-	local excluded_patterns_file=""
-	[[ $# -gt 2 ]] && excluded_patterns_file="${3}"
 
 	cat ${src_file} | while read src_line;
 	do
@@ -99,7 +114,7 @@ backup_all_sources()
 			# Add trailing slash to the path if needed
 			local src_path=$(add_trailing_slash ${src_line})
 
-			backup_directory ${src_path} ${dst} ${excluded_patterns_file}
+			backup_directory ${src_path} ${dst} ${excluded_patterns_file} ${user} ${host}
 			retval=0
 		fi
 	done
@@ -214,9 +229,11 @@ main()
 	local src_file=''
 	local exclude_file=''
 	local destination=''
+	local remote_host=''
+	local remote_user=''
 
 	# Parses CLI options
-	while getopts ":s:e:d:h" opt; do
+	while getopts ":s:r:u:e:d:h" opt; do
 		case $opt in
 			h)
 				help $(basename "$0")
@@ -230,6 +247,12 @@ main()
 				;;
 			e)
 				exclude_file="${OPTARG}"
+				;;
+			r)
+				remote_host="${OPTARG}"
+				;;
+			u)
+				remote_user="${OPTARG}"
 				;;
 			\?)
 				echo "Invalid option: -$OPTARG" >&2
@@ -250,18 +273,20 @@ main()
 		exit 1
 	fi
 
-	# Check that a valid destination directory has been specified
-	if ! check_destination ${destination}; then
+	# Check that a valid destination directory has been specified.
+	# (We do NOT perform this check in case of remote backup)
+	#
+	if [[ "x$remote_host" == "x" ]] && ! check_destination ${destination}; then
 		exit 3
 	fi
 
-	# Check that exclude file (if specified) exists
+	# Check that excluded patterns file (if specified) exists
 	if [[ "x$exclude_file" != "x" && ! -f $exclude_file ]]; then
 		usage $(basename "$0")
 		exit 4
 	fi
 
-	backup_all_sources ${src_file} ${destination} ${exclude_file}
+	backup_all_sources ${src_file} ${destination} ${exclude_file:-/dev/null} ${remote_user:-$USER} ${remote_host}
 	exit $?
 }
 
