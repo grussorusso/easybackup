@@ -76,7 +76,7 @@ verify()
 
 prepare_test
 
-../easy-backup -s $LIST_FILE -d $BACKUP_DIR -e $EXCLUDED_PATTERNS_FILE
+../easybackup -s $LIST_FILE -d $BACKUP_DIR -e $EXCLUDED_PATTERNS_FILE
 
 verify
 retval=$?

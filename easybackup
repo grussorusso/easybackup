@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#    easy-backup -- A rsync wrapper to easily perform backups of a set of directories.
+#    easybackup -- A rsync wrapper to easily perform backups of a set of directories.
 #    Copyright (C) 2016 Gabriele Russo Russo
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -230,7 +230,7 @@ Assuming that 'backup_directories.txt' is a regular file containing these lines:
 
 following command will perform a backup of these directories to '/mnt/external/':
 	
-	$ easy-backup -s backup_directories.txt -d /mnt/external
+	$ easybackup -s backup_directories.txt -d /mnt/external
 
 The resulting directory hierarchy under '/mnt/external':
 

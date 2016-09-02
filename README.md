@@ -1,4 +1,4 @@
-# easy-backup #
+# easybackup #
 
 A simple Bash script for performing an incremental backup of a set of directories
 to a specified location (possibly to a remote server via SSH) through `rsync`
@@ -20,7 +20,7 @@ It is extremely easy to get a working copy of this software:
 
 ## Usage ##
 
-Your first run of `easy-backup` is made of two phases:
+Your first run of `easybackup` is made of two phases:
 
 1. Choose the directories to be included in the backup. Prepare a file
 containing absolute path of chosen directories, one per line. E.g.:
@@ -30,17 +30,17 @@ containing absolute path of chosen directories, one per line. E.g.:
 
 2. Start the backup issuing the following command:
 
-		./easy-backup -s <chosen_dirs_file> -d <destination_directory>
+		./easybackup -s <chosen_dirs_file> -d <destination_directory>
 
 That's it!
 
 For a backup to a remote server (on which `rsync` is installed):
 
-		./easy-backup -s <chosen_dirs_file> -d <destination_directory> -r <server>
+		./easybackup -s <chosen_dirs_file> -d <destination_directory> -r <server>
 
-You can get more details about available options and what `easy-backup` does, issuing:
+You can get more details about available options and what `easybackup` does, issuing:
 
-	./easy-backup -h
+	./easybackup -h
 
 
 ## Copying ##
