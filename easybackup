@@ -99,8 +99,6 @@ backup_all_sources()
 	# Sets option for showing progress (if verbose flag is set)
 	local progress_opt=""
 	[[ $VERBOSE_FLAG -ne 0 ]] && progress_opt='--progress'
-	[[ $VERBOSE_FLAG -ne 0 ]] && echo "Verbose" || echo "Not verbose"
-	
 
 	# Sets SSH related options (if needed)
 	local ssh_opt=""
@@ -129,6 +127,7 @@ backup_all_sources()
 		echo "+++ BACKUP FAILED!" >&2
 		exit 2
 	fi
+	echo "Done."
 
 	return 0 
 }
