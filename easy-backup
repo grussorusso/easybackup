@@ -20,6 +20,9 @@
 # Terminate execution whenever accessing an unset variable
 set -o nounset
 
+# Flag for verbose operation
+VERBOSE_FLAG=0
+
 
 # Adds trailing slash to given path (if missing) and writes it to output.
 # Param: $1 -> path
@@ -86,12 +89,18 @@ backup_all_sources()
 	local user="${4}"
 	local host="${5:-}"
 	local source_directories=()
-	local RSYNC_OPT='-aShR --delete'
+	local rsync_options='-aShR --delete'
 	local src_path=''
 
 	# Sets option for providing an excluded patterns file
 	local exclude_from_opt=""
 	[[ "${excluded_patterns_file}" != '/dev/null' ]] && exclude_from_opt="--exclude-from ${excluded_patterns_file}"
+
+	# Sets option for showing progress (if verbose flag is set)
+	local progress_opt=""
+	[[ $VERBOSE_FLAG -ne 0 ]] && progress_opt='--progress'
+	[[ $VERBOSE_FLAG -ne 0 ]] && echo "Verbose" || echo "Not verbose"
+	
 
 	# Sets SSH related options (if needed)
 	local ssh_opt=""
@@ -114,7 +123,7 @@ backup_all_sources()
 
 	# Runs rsync
 	echo "Running backup..."
-	rsync ${RSYNC_OPT} ${ssh_opt} ${exclude_from_opt} ${source_directories[@]} ${host_prefix}${dst}
+	rsync ${rsync_options} ${progress_opt} ${ssh_opt} ${exclude_from_opt} ${source_directories[@]} ${host_prefix}${dst}
 
 	if [[ $? -ne 0 ]]; then
 		echo "+++ BACKUP FAILED!" >&2
@@ -159,7 +168,7 @@ check_local_destination()
 _usage()
 {
 	local progname="$1"
-	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-e <excluded patterns file>] [-r <remote host> [-u <remote user>]]"
+	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-v] [-e <excluded patterns file>] [-r <remote host> [-u <remote user>]]"
 }
 
 # Prints brief usage information.
@@ -210,6 +219,9 @@ PARAMETERS:
         		       backup is performed, SSH login is attemted using
         		       current username.
 
+-v                           = (optional) verbose output; prints details about
+                               transferred files
+
 EXAMPLE:
 Assuming that 'backup_directories.txt' is a regular file containing these lines:
 
@@ -244,11 +256,14 @@ main()
 	local remote_user=''
 
 	# Parses CLI options
-	while getopts ":s:r:u:e:d:h" opt; do
+	while getopts ":s:r:u:e:d:hv" opt; do
 		case $opt in
 			h)
 				help $(basename "$0")
 				exit 0
+				;;
+			v)
+				VERBOSE_FLAG=1
 				;;
 			s)
 				src_file="${OPTARG}"
