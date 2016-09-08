@@ -30,7 +30,7 @@ VERBOSE_FLAG=0
 add_trailing_slash()
 {
 	local path="$1"
-	[[ ! ${path} =~ /$ ]] && echo "${path}/" || echo ${path}
+	[[ ! "${path}" =~ /$ ]] && echo "${path}/" || echo "${path}"
 }
 
 
@@ -66,11 +66,45 @@ read_source_directories()
 {
 	local src_file="${1}"
 	
-	while read src_line;
+	while read -r src_line;
 	do
 		# Check that line is a valid directory path and outputs it
-		check_source_path ${src_line} && echo $(add_trailing_slash ${src_line})
-	done < ${src_file}
+		check_source_path "${src_line}" && add_trailing_slash "${src_line}"
+	done < "${src_file}"
+}
+
+# rsync wrapper
+# Param: $1 -> array of directories to backup
+# Param: $2 -> backup destination directory
+# Param: $3 -> file containing patterns to be excluded
+# Param: $4 -> (optional) option for requesting progress information
+#
+rsync_local()
+{
+	local srcs=("${!1}")
+	local dst="${2}"
+	local exclude_from_file="${3}"
+	local progress_opt="${4:-}"
+
+	rsync -aShR --delete "${progress_opt}" --exclude-from "${exclude_from_file}" "${srcs[@]}" "${dst}"
+}
+
+# rsync wrapper
+# Param: $1 -> array of directories to backup
+# Param: $2 -> backup destination directory
+# Param: $3 -> file containing patterns to be excluded
+# Param: $4 -> hostname prefix for destination directory path
+# Param: $5 -> (optional) option for requesting progress information
+#
+rsync_remote()
+{
+	local srcs=("${!1}")
+	local dst="${2}"
+	local exclude_from_file="${3}"
+	local host_prefix="${4}"
+	local progress_opt="${5:-}"
+
+	rsync -aShR --delete "${progress_opt}" -e ssh --exclude-from "${exclude_from_file}" "${srcs[@]}" "${host_prefix}${dst}"
 }
 
 
@@ -89,28 +123,15 @@ backup_all_sources()
 	local user="${4}"
 	local host="${5:-}"
 	local source_directories=()
-	local rsync_options='-aShR --delete'
-	local src_path=''
-
-	# Sets option for providing an excluded patterns file
-	local exclude_from_opt=""
-	[[ "${excluded_patterns_file}" != '/dev/null' ]] && exclude_from_opt="--exclude-from ${excluded_patterns_file}"
+	local host_prefix=""
 
 	# Sets option for showing progress (if verbose flag is set)
 	local progress_opt=""
 	[[ $VERBOSE_FLAG -ne 0 ]] && progress_opt='--progress'
 
-	# Sets SSH related options (if needed)
-	local ssh_opt=""
-	local host_prefix=""
-	if [[ "x${host}" != "x" ]]; then
-		ssh_opt='-e ssh'
-		[[ ${user} == ${USER} ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
-	fi
-	
 	# Reads list of source directories and stores paths into an array
 	local tmp_ifs=$IFS
-	IFS=$'\n' source_directories+=( $(read_source_directories $src_file) )
+	IFS=$'\n' source_directories+=( $(read_source_directories "$src_file") )
 	IFS=$tmp_ifs
 
 	# Checks that at least one valid source directory exists
@@ -119,9 +140,15 @@ backup_all_sources()
 		exit 5
 	fi
 
-	# Runs rsync
 	echo "Running backup..."
-	rsync ${rsync_options} ${progress_opt} ${ssh_opt} ${exclude_from_opt} ${source_directories[@]} ${host_prefix}${dst}
+
+	# Runs rsync
+	if [[ "x${host}" != "x" ]]; then
+		[[ ${user} == "${USER}" ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
+		rsync_remote source_directories[@] "${dst}" "${excluded_patterns_file}" "${host_prefix}" "${progress_opt}" 
+	else
+		rsync_local source_directories[@] "${dst}" "${excluded_patterns_file}" "${progress_opt}" 
+	fi
 
 	if [[ $? -ne 0 ]]; then
 		echo "+++ BACKUP FAILED!" >&2
@@ -146,7 +173,7 @@ check_local_destination()
 	# Checks for directory existence
 	if [[ ! -d ${dst} ]]; then
 		echo "Creating destination directory: ${dst}"
-		if  ! mkdir -p ${dst}; then
+		if  ! mkdir -p "${dst}"; then
 			echo "[ERROR] Could not create destination directory!" >&2
 			return 1
 		fi
@@ -177,7 +204,7 @@ usage()
 {
 	local progname="$1"
 
-	_usage ${progname}
+	_usage "${progname}"
 	echo "Use -h for requesting full help."
 }
 
@@ -187,7 +214,7 @@ usage()
 help()
 {
 	local progname="$1"	
-	_usage ${progname}
+	_usage "${progname}"
 
 	cat << EOS
 
@@ -258,7 +285,7 @@ main()
 	while getopts ":s:r:u:e:d:hv" opt; do
 		case $opt in
 			h)
-				help $(basename "$0")
+				help "$(basename "$0")"
 				exit 0
 				;;
 			v)
@@ -281,12 +308,12 @@ main()
 				;;
 			\?)
 				echo "Invalid option: -$OPTARG" >&2
-				usage $(basename "$0")
+				usage "$(basename "$0")"
 				exit 1
 				;;
 			:)
 				echo "Option -$OPTARG requires an argument." >&2
-				usage $(basename "$0")
+				usage "$(basename "$0")"
 				exit 1
 				;;
 		esac
@@ -294,24 +321,24 @@ main()
 
 	# Check that a sources file and a destination directory have been provided
 	if [[ "x$src_file" == "x" || "x$destination" == "x" ]]; then
-		usage $(basename "$0")
+		usage "$(basename "$0")"
 		exit 1
 	fi
 
 	# Check that a valid destination directory has been specified.
 	# (We do NOT perform this check in case of remote backup)
 	#
-	if [[ "x$remote_host" == "x" ]] && ! check_local_destination ${destination}; then
+	if [[ "x$remote_host" == "x" ]] && ! check_local_destination "${destination}"; then
 		exit 3
 	fi
 
 	# Check that excluded patterns file (if specified) exists
 	if [[ "x$exclude_file" != "x" && ! -f $exclude_file ]]; then
-		usage $(basename "$0")
+		usage "$(basename "$0")"
 		exit 4
 	fi
 
-	backup_all_sources ${src_file} ${destination} ${exclude_file:-/dev/null} ${remote_user:-$USER} ${remote_host}
+	backup_all_sources "${src_file}" "${destination}" "${exclude_file:-/dev/null}" "${remote_user:-$USER}" "${remote_host}"
 	exit $?
 }
 
