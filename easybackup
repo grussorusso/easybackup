@@ -77,16 +77,18 @@ read_source_directories()
 # Param: $1 -> array of directories to backup
 # Param: $2 -> backup destination directory
 # Param: $3 -> file containing patterns to be excluded
-# Param: $4 -> (optional) option for requesting progress information
 #
 rsync_local()
 {
 	local srcs=("${!1}")
 	local dst="${2}"
 	local exclude_from_file="${3}"
-	local progress_opt="${4:-}"
 
-	rsync -aShR --delete "${progress_opt}" --exclude-from "${exclude_from_file}" "${srcs[@]}" "${dst}"
+	if [[ $VERBOSE_FLAG -ne 0 ]]; then
+		rsync -aShR --delete --progress --exclude-from "${exclude_from_file}" "${srcs[@]}" "${dst}"
+	else
+		rsync -aShR --delete --exclude-from "${exclude_from_file}" "${srcs[@]}" "${dst}"
+	fi
 }
 
 # rsync wrapper
@@ -94,7 +96,6 @@ rsync_local()
 # Param: $2 -> backup destination directory
 # Param: $3 -> file containing patterns to be excluded
 # Param: $4 -> hostname prefix for destination directory path
-# Param: $5 -> (optional) option for requesting progress information
 #
 rsync_remote()
 {
@@ -102,9 +103,12 @@ rsync_remote()
 	local dst="${2}"
 	local exclude_from_file="${3}"
 	local host_prefix="${4}"
-	local progress_opt="${5:-}"
 
-	rsync -aShR --delete "${progress_opt}" -e ssh --exclude-from "${exclude_from_file}" "${srcs[@]}" "${host_prefix}${dst}"
+	if [[ $VERBOSE_FLAG -ne 0 ]]; then
+		rsync -aShR --delete --progress -e ssh --exclude-from "${exclude_from_file}" "${srcs[@]}" "${host_prefix}${dst}"
+	else
+		rsync -aShR --delete -e ssh --exclude-from "${exclude_from_file}" "${srcs[@]}" "${host_prefix}${dst}"
+	fi
 }
 
 
@@ -125,10 +129,6 @@ backup_all_sources()
 	local source_directories=()
 	local host_prefix=""
 
-	# Sets option for showing progress (if verbose flag is set)
-	local progress_opt=""
-	[[ $VERBOSE_FLAG -ne 0 ]] && progress_opt='--progress'
-
 	# Reads list of source directories and stores paths into an array
 	local tmp_ifs=$IFS
 	IFS=$'\n' source_directories+=( $(read_source_directories "$src_file") )
@@ -145,9 +145,9 @@ backup_all_sources()
 	# Runs rsync
 	if [[ "x${host}" != "x" ]]; then
 		[[ ${user} == "${USER}" ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
-		rsync_remote source_directories[@] "${dst}" "${excluded_patterns_file}" "${host_prefix}" "${progress_opt}" 
+		rsync_remote source_directories[@] "${dst}" "${excluded_patterns_file}" "${host_prefix}" 
 	else
-		rsync_local source_directories[@] "${dst}" "${excluded_patterns_file}" "${progress_opt}" 
+		rsync_local source_directories[@] "${dst}" "${excluded_patterns_file}"
 	fi
 
 	if [[ $? -ne 0 ]]; then
