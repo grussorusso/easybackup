@@ -18,6 +18,9 @@ It is extremely easy to get a working copy of this software:
 
 3. Done! You are ready to try it!
 
+**For Arch Linux users**: `easybackup` is also available from 
+[AUR](https://aur.archlinux.org/packages/easybackup/).
+
 ## Usage ##
 
 Your first run of `easybackup` is made of two phases:
@@ -32,15 +35,28 @@ containing absolute path of chosen directories, one per line. E.g.:
 
 		./easybackup -s <chosen_dirs_file> -d <destination_directory>
 
-That's it!
+That's it! In the destination directory, you will find:
 
-For a backup to a remote server (on which `rsync` is installed):
+	/path/to/destination/
+	                  |---- home/
+	                          |--- me/
+	                                |--- Documents/
+	                                         |---- ...
+	                                |--- Pictures/
+	                                         |---- ...
+	                                         |---- ...
 
-		./easybackup -s <chosen_dirs_file> -d <destination_directory> -r <server>
 
 You can get more details about available options and what `easybackup` does, issuing:
 
 	./easybackup -h
+
+
+## Remote backup through SSH ##
+
+For a backup to a remote server (on which `rsync` is installed):
+
+		./easybackup -s <chosen_dirs_file> -d <destination_directory> -r <server> [-u <username>]
 
 
 ## Copying ##
