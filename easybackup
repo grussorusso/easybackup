@@ -1,6 +1,7 @@
 #!/bin/bash
 
-#    easybackup -- A rsync wrapper to easily perform backups of a set of directories.
+#    easybackup -- A rsync wrapper to easily perform backups of a set of
+#    directories or files.
 #    Copyright (C) 2016 Gabriele Russo Russo
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -34,7 +35,7 @@ add_trailing_slash()
 }
 
 
-# Checks that given directory path is a valid source directory path.
+# Checks that given path is a valid source path.
 # We require an absolute path.
 # 
 # Param: $1 -> path
@@ -49,20 +50,14 @@ check_source_path()
 		return 1
 	fi
 
-	# Check that path is a directory
-	if [[ ! -d ${src} ]]; then
-		echo "Given source is not a directory: ${src} (skipped)" >&2
-		return 2
-	fi
-
 	return 0
 }
 
-# Reads list of source directories and writes to output path of valid ones.
+# Reads list of source paths and writes to output path of valid ones.
 # 
-# Param: $1 -> file containing list of directories
+# Param: $1 -> file containing list of paths
 #
-read_source_directories()
+read_source_paths()
 {
 	local src_file="${1}"
 	
@@ -74,7 +69,7 @@ read_source_directories()
 }
 
 # rsync wrapper
-# Param: $1 -> array of directories to backup
+# Param: $1 -> array of paths to backup
 # Param: $2 -> backup destination directory
 # Param: $3 -> file containing patterns to be excluded
 #
@@ -92,7 +87,7 @@ rsync_local()
 }
 
 # rsync wrapper
-# Param: $1 -> array of directories to backup
+# Param: $1 -> array of paths to backup
 # Param: $2 -> backup destination directory
 # Param: $3 -> file containing patterns to be excluded
 # Param: $4 -> hostname prefix for destination directory path
@@ -112,8 +107,8 @@ rsync_remote()
 }
 
 
-# Performs backup of all specified source directories.
-# Param: $1 -> file containing source directories (absolute paths)
+# Performs backup of all specified source paths.
+# Param: $1 -> file containing source paths (absolute paths)
 # Param: $2 -> backup destination directory
 # Param: $3 -> file containing patterns to be excluded
 # Param: $4 -> username to use for remote backup
@@ -126,17 +121,17 @@ backup_all_sources()
 	local excluded_patterns_file="${3}"
 	local user="${4}"
 	local host="${5:-}"
-	local source_directories=()
+	local source_paths=()
 	local host_prefix=""
 
-	# Reads list of source directories and stores paths into an array
+	# Reads list of source paths and stores them into an array
 	local tmp_ifs=$IFS
-	IFS=$'\n' source_directories+=( $(read_source_directories "$src_file") )
+	IFS=$'\n' source_paths+=( $(read_source_paths "$src_file") )
 	IFS=$tmp_ifs
 
-	# Checks that at least one valid source directory exists
-	if [[ ${#source_directories[@]} -lt 1 ]]; then
-		echo "No directories to backup." >&2
+	# Checks that at least one valid source exists
+	if [[ ${#source_paths[@]} -lt 1 ]]; then
+		echo "No files to backup." >&2
 		exit 5
 	fi
 
@@ -145,9 +140,9 @@ backup_all_sources()
 	# Runs rsync
 	if [[ "x${host}" != "x" ]]; then
 		[[ ${user} == "${USER}" ]] && host_prefix="${host}:" || host_prefix="${user}@${host}:"
-		rsync_remote source_directories[@] "${dst}" "${excluded_patterns_file}" "${host_prefix}" 
+		rsync_remote source_paths[@] "${dst}" "${excluded_patterns_file}" "${host_prefix}" 
 	else
-		rsync_local source_directories[@] "${dst}" "${excluded_patterns_file}"
+		rsync_local source_paths[@] "${dst}" "${excluded_patterns_file}"
 	fi
 
 	if [[ $? -ne 0 ]]; then
@@ -194,7 +189,7 @@ check_local_destination()
 _usage()
 {
 	local progname="$1"
-	echo "Usage: ${progname} -s <sources file> -d <destination directory> [-v] [-e <excluded patterns file>] [-r <remote host> [-u <remote user>]]"
+	echo "Usage: ${progname} -s <list file> -d <destination directory> [-v] [-e <excluded patterns file>] [-r <remote host> [-u <remote user>]]"
 }
 
 # Prints brief usage information.
@@ -219,8 +214,8 @@ help()
 	cat << EOS
 
 A simple 'rsync' wrapper script for performing an incremental backup of a set of 
-directories to a specified location (e.g. an external storage device or a
-remote server via SSH).
+directories or files to a specified location (e.g. an external storage device or
+a remote server via SSH).
 
 The list of directories to be included in backup is provided through a "sources"
 file. The destination for backup is specified as an argument. In this
@@ -231,7 +226,7 @@ If a remote backup is to be run, user has to specify the host and (optionally)
 the username for establishing a SSH connection.
 
 PARAMETERS:
--s <source directories file> = file containing the list of directories to be
+-s <source list file> = file containing the list of directories and files to be
 				included in backup. Absolute paths are required,
 				one per line.
 -d <destination directory>   = directory for storing backup
